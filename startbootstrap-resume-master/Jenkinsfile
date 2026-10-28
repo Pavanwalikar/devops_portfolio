@@ -1,26 +1,42 @@
 pipeline {
-    agent any
+agent any
 
-    stages {
-        stage('Checkout') {
-            steps {
-                echo 'Code is checked out from GitHub by Jenkins.'
-            }
+stages {
+    stage('Checkout') {
+        steps {
+            echo 'Code is checked out from GitHub by Jenkins.'
         }
+    }
 
-        stage('Verify Docker') {
-            steps {
-                sh 'docker --version'
-                sh 'docker ps'
-            }
+    stage('Verify Docker') {
+        steps {
+            sh 'docker --version'
+            sh 'docker ps'
         }
+    }
 
-        stage('Build Website Image') {
-            steps {
-                dir('startbootstrap-resume-master') {
-                    sh 'docker build -t pavanwalikar/devops-portfolio:v2 .'
-                }
+    stage('Build Website Image') {
+        steps {
+            dir('startbootstrap-resume-master') {
+                sh 'docker build -t pavanwalikar/devops-portfolio:v2 .'
             }
         }
     }
+
+    stage('Deploy Website') {
+        steps {
+            sh '''
+                if docker ps -a --format '{{.Names}}' | grep -q '^portfolio-auto-deploy-test$'; then
+                    docker rm -f portfolio-auto-deploy-test
+                fi
+
+                docker run -d \
+                    --name portfolio-auto-deploy-test \
+                    -p 8084:80 \
+                    pavanwalikar/devops-portfolio:v2
+            '''
+        }
+    }
+}
+
 }
