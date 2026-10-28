@@ -2,23 +2,24 @@ pipeline {
     agent any
 
     stages {
-        stage('Check Jenkins') {
+        stage('Checkout') {
             steps {
-                echo 'Jenkins Pipeline is working!'
+                echo 'Code is checked out from GitHub by Jenkins.'
             }
         }
 
-        stage('Check Docker') {
+        stage('Verify Docker') {
             steps {
                 sh 'docker --version'
                 sh 'docker ps'
             }
         }
 
-        stage('Check Workspace') {
+        stage('Build Website Image') {
             steps {
-                sh 'pwd'
-                sh 'ls -la'
+                dir('startbootstrap-resume-master') {
+                    sh 'docker build -t pavanwalikar/devops-portfolio:v2 .'
+                }
             }
         }
     }
