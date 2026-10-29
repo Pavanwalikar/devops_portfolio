@@ -1,0 +1,74 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Code is checked out from GitHub by Jenkins.'
+            }
+        }
+
+        stage('Verify Docker') {
+            steps {
+                sh 'docker --version'
+                sh 'docker ps'
+            }
+        }
+
+        stage('SonarQube Code Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+
+                    withSonarQubeEnv('SonarQube') {
+                        sh "${scannerHome}/bin/sonar-scanner"
+                    }
+                }
+            }
+        }
+
+        stage('Build Website Image') {
+            steps {
+                dir('startbootstrap-resume-master') {
+                    sh 'docker build -t pavanwalikar/devops-portfolio:v2 .'
+                }
+            }
+        }
+
+        stage('Deploy Website') {
+            steps {
+                sh '''
+                    if docker ps -a --format '{{.Names}}' | grep -q '^portfolio-auto-deploy-test$'; then
+                        docker rm -f portfolio-auto-deploy-test
+                    fi
+
+                    docker run -d \
+                        --name portfolio-auto-deploy-test \
+                        -p 8084:80 \
+                        pavanwalikar/devops-portfolio:v2
+                '''
+            }
+        }
+
+        stage('Deployment Verification') {
+            steps {
+                sh '''
+                    echo "Waiting for the website to become available..."
+
+                    for attempt in 1 2 3 4 5; do
+                        if docker exec portfolio-auto-deploy-test wget -q -O /dev/null http://127.0.0.1/; then
+                            echo "SUCCESS: Website returned an HTTP response."
+                            exit 0
+                        fi
+
+                        echo "Attempt ${attempt} failed. Retrying in 3 seconds..."
+                        sleep 3
+                    done
+
+                    echo "ERROR: Website health check failed."
+                    exit 1
+                '''
+            }
+        }
+    }
+}
